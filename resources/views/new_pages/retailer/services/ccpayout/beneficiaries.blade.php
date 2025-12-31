@@ -1,0 +1,344 @@
+@extends('new_layouts/app')
+
+@section('title', 'Beneficiaries')
+
+@section('page-style')
+<style>
+
+.select2-container {
+    z-index: 9999; /* Higher than modal's z-index */
+    width: 100%;
+}
+
+.select2-dropdown {
+    z-index: 9999; /* Ensures dropdown is above other elements */
+}
+
+.select2-search--dropdown {
+    width: 100% !important; /* Ensures search box takes full width */
+}
+
+.select2-results__options {
+    max-height: 200px; /* Limits height of dropdown options */
+    overflow-y: auto; /* Adds scroll if there are too many options */
+}
+</style>
+@endsection
+
+@section('content')
+<div class="content-wrapper">
+    <div class="row">
+        <div class="col-md-12 grid-margin stretch-card">
+                <div class="card bg-inner-page">
+                  <div class="card-body">
+                    <h4 class="card-title text-white">Beneficiaries</h4>
+                    <!--<p class="card-description"> Bordered layout </p>-->
+                    
+                    
+                    <form class="forms-sample" action="{{ route('post_ccpayout_transaction_retailer') }}" id="dmt_form" method="post">
+                        @csrf
+                        
+                      <input type="hidden" value="{{ $sender_id }}" id="sender_id" name="sender_id" />
+                      <input type="hidden" name="latitude" id="latitude" value="">
+                      <input type="hidden" name="longitude" id="longitude" value="">
+                      <input type="hidden" name="accuracy" id="accuracy" value="">
+                      <div class="form-group row">
+                          <div class="col-md-9 col-sm-12">
+                           
+                           <select class="js-example-basic-single w-100 form-control" id="beneficiary_id" name="beneficiary_id" onchange="letsPay()" required="">
+                               <option value="">Select Beneficiaries</option>
+                               @foreach($data as $r)
+                                
+                                
+                                <option value="{{ $r->beneficiary_id }}">{{ $r->account_holder_name }} | {{ $r->account_number }} | {{ $r->ifsc }}</option>
+                                
+                               @endforeach
+                           </select>
+                           
+                        </div>
+                        <div class="col-md-1 col-sm-6">
+                            <button class="btn btn-danger" type="button" onclick="delectBenf()" style="height: 44px;">
+                                <i class="ti-trash"></i>
+                            </button>
+                        </div>
+                        <div class="col-md-2 col-sm-6">
+                            <button class="btn btn-primary" type="button" style="height: 44px;" data-bs-toggle="modal" data-bs-target="#add_benf">
+                                 Add Beneficiary
+                            </button>
+                        </div>
+                      </div>
+                      
+                      <div class="form-group row">
+                        <label class="col-sm-3 col-form-label text-white">Transaction Tpe</label>
+                        <div class="col-sm-4">
+                             <div class="form-check">
+                            <label class="form-check-label text-white">
+                                 <input type="radio" class="form-check-input" name="transfer_type" id="imps" value="1" checked=""> T+0 <i class="input-helper"></i></label>
+                             </div>
+                        </div>
+                        <div class="col-sm-5">
+                             <div class="form-check">
+                            <label class="form-check-label text-white">
+                                 <input type="radio" class="form-check-input" name="transfer_type" id="neft" value="2"> T+1 <i class="input-helper"></i></label>
+                             </div>
+                        </div>
+                    </div>
+                        <div class="form-group">
+                          <div class="input-group">
+                            <div class="input-group-prepend">
+                              <span class="input-group-text">₹</span>
+                            </div>
+                            <input type="text" class="form-control" name="amount" id="amount" placeholder="Amount" aria-label="Amount" required="">
+                          </div>
+                        </div>
+                      
+                      <div class="button-container">
+                        <button type="button" class="button btn btn-primary" onclick="confirmBox()"><span>Pay</span></button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+    </div>
+</div>
+@include('new_pages.retailer.services.ccpayout.add_benf')
+@endsection
+
+@section('page-script')
+<script>
+    function letsPay(){
+        var beneficiaries = $("#beneficiary_id").val();
+    }
+    
+    function confirmBox(){
+        
+        var beneficiaries = $('#beneficiary_id option:selected').text();
+        var details = beneficiaries.split('|');
+        var amount = $("#amount").val();
+        var transafer_type = $('input[name="transfer_type"]:checked').val();
+        var latitude = $("#latitude").val();
+        var error = '<b class="text-success">GOOD TO GO!</b>';
+        if (latitude === "") {
+            var error = '<b class="text-danger">Please Check Your Location Permission!</b>';
+        }
+        var html = error+'<table class="table"><tbody><tr><td class="text-start">A/C Holder</td><td class="text-start">'+ details[0] +'</td></tr> <tr><td class="text-start">A/C No.</td><td class="text-start">'+ details[1] +'</td></tr> <tr><td class="text-start">IFSC</td><td class="text-start">'+ details[2] +'</td></tr> <tr><td class="text-start">Mobile</td><td class="text-start">'+ details[3] +'</td></tr> <tr><td class="text-start">Mode</td><td class="text-start">'+ transafer_type +'</td></tr> <tr class="thead-light text-start"><td><strong>Amount</strong></td><td class="text-start"><strong><u><i>₹ '+ amount +'</i></u></strong> (WALLET : ₹ {{ Auth::user()->wallet->balanceFloat }})</td></tr></tbody></table>';
+        Swal.fire({
+          title: "",
+          icon: "info",
+          html: html,
+          showCloseButton: true,
+          showCancelButton: true,
+          focusConfirm: false,
+          confirmButtonText: `
+            <i class="fa fa-thumbs-up"></i> Great!
+          `,
+          confirmButtonAriaLabel: "Thumbs up, great!",
+          cancelButtonText: `
+            <i class="fa fa-thumbs-down"></i>
+          `,
+          cancelButtonAriaLabel: "Thumbs down"
+        }).then((result) => {
+          if (result.isConfirmed) {
+            submitform();  // Call your function here
+          }
+        });
+    }
+    
+    function submitform(){
+        $("#dmt_form").submit();
+    }
+    
+    function delectBenf(){
+        var beneficiaries = $("#beneficiaries").val();
+        var mobile = $("#mobile").val();
+        
+        if(beneficiaries != ""){
+            Swal.fire({
+              title: "Are you sure?",
+              text: "You won't be able to revert this!",
+              icon: "warning",
+              showCancelButton: true,
+              confirmButtonColor: "#3085d6",
+              cancelButtonColor: "#d33",
+              confirmButtonText: "Yes, delete it!"
+            }).then((result) => {
+              if (result.isConfirmed) {
+                  $.ajax({
+                        type: 'post',
+                        dataType:'json',
+                        url: "{{ route('bill_post_dmt_benf_delete_retailer') }}",
+                        data: {"beneficiaries" : beneficiaries,"mobile":mobile ,"_token":"{{ csrf_token() }}"},
+                        success: function (result) {
+                            
+                            if(result.success){
+                                Swal.fire({
+                                  title: "Deleted!",
+                                  text: result.message,
+                                  icon: "success"
+                                });
+                                $('.js-example-basic-single').select2('destroy');
+                                $('#beneficiaries').html(result.data);
+                                $(".js-example-basic-single").select2();
+                            }else{
+                                Swal.fire({
+                                  title: "Something Wrong!",
+                                  text: result.message,
+                                  icon: "error"
+                                });
+                            }
+                            
+                        }
+                    });
+                    
+                
+              }
+            });
+        }else{
+            alert("Please Select Beneficiary");
+        }
+    }
+    
+    function verifyBenf(){
+        $("#acc_verify_button").html("Validating!! Please Wait.");
+        var benf_acc = $("#number").val();
+        var ifsc = $("#ifsc").val();
+        
+        if(benf_acc != "" && ifsc != ""){
+            Swal.fire({
+              title: "Are you sure?",
+              text: "It Will Charge Rs.4!",
+              icon: "warning",
+              showCancelButton: true,
+              confirmButtonColor: "#3085d6",
+              cancelButtonColor: "#d33",
+              confirmButtonText: "Yes, Verify it!"
+            }).then((result) => {
+              if (result.isConfirmed) {
+                  $.ajax({
+                        type: 'post',
+                        dataType:'json',
+                        url: "{{ route('post_dmt_benf_verify_retailer') }}",
+                        data: {"account" : benf_acc,"ifsc":ifsc ,"_token":"{{ csrf_token() }}"},
+                        success: function (result) {
+                            
+                            if(result.success){
+                                Swal.fire({
+                                  title: "Verified!",
+                                  text: "Account Verified : "+result.data,
+                                  icon: "success"
+                                });
+                                
+                                $('#benf_name').val(result.data);
+                                $('#is_verify').val(1);
+                                $("#acc_verify_button").html("Verified");
+                            }else{
+                                $("#acc_verify_button").html("Verify");
+                                Swal.fire({
+                                  title: "Something Wrong!",
+                                  text: result.message,
+                                  icon: "error"
+                                });
+                            }
+                            
+                        }
+                    });
+                    
+                
+              }
+            });
+        }else{
+            $("#acc_verify_button").html("Verify");
+            alert("Please Enter Account Number And IFSC Code.");
+        }
+    }
+
+$(document).ready(function() {
+    $('.js-example-basic-single-bank').select2({
+        dropdownParent: $('#add_benf')
+    });
+    //$(".js-example-basic-single-bank").select2();
+    $('#beneficiaries').next('.select2-container').css('z-index','0');
+    $('#banks').next('.select2-container').css('width','100%');
+    
+    $('#banks').on('select2:select', function(e) {
+                // Get the selected option
+        var selectedOption = e.params.data.element;
+                
+                // Retrieve the data-ifsc attribute
+        var ifscCode = $(selectedOption).data('ifsc');
+
+                // Display the IFSC code
+        $('#ifsc').val(ifscCode);
+    });
+});
+
+const x = document.getElementById("demo");
+
+function getLocation() {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(showPosition);
+  } else { 
+    x.innerHTML = "Geolocation is not supported by this browser.";
+  }
+}
+
+function showPosition(position) {
+  
+  $("#latitude").val(position.coords.latitude);
+  $("#longitude").val(position.coords.longitude);
+  $("#accuracy").val(position.coords.accuracy);
+}
+
+//getLocation();
+
+function getLocationUsingGoogleAPI() {
+  // Replace with your actual API key
+  const apiKey = "AIzaSyBNdPZHybJOOp0q3FUOg3Hp7U6t6nbiGIA";
+  
+  // Make a POST request to the Google Geolocation API
+  fetch("https://www.googleapis.com/geolocation/v1/geolocate?key=" + apiKey, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    // You can include WiFi access points or cell towers info for better accuracy
+    body: JSON.stringify({})
+  })
+  .then(response => response.json())
+  .then(data => {
+    console.log("Google API location:", data);
+    
+    // Update your form fields
+    $("#latitude").val(data.location.lat);
+    $("#longitude").val(data.location.lng);
+    $("#accuracy").val(data.accuracy);
+    
+    getBrowserLocationAsFallback();
+  })
+  .catch(error => {
+    console.error("Error getting location from Google API:", error);
+  });
+}
+
+getLocationUsingGoogleAPI();
+
+function getBrowserLocationAsFallback() {
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      console.log("Fallback browser location:", position);
+      $("#latitude").val(position.coords.latitude);
+      $("#longitude").val(position.coords.longitude);
+      $("#accuracy").val(position.coords.accuracy);
+    },
+    (error) => {
+      console.error("Fallback geolocation error:", error);
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    }
+  );
+}
+</script>
+@endsection

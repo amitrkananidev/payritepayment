@@ -1,0 +1,1 @@
+<img src="{{ asset('uploads/money_request/'.$data->img) }}" class="img-thumbnail" alt="...">
